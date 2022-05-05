@@ -35,7 +35,7 @@ extern "C" {
 /*
  * Initialization
  */
-void _sym_initialize(void);
+void _sym_initialize(char const* const input, size_t input_len);
 
 /*
  * Construction of simple values
@@ -142,6 +142,7 @@ SymExpr _sym_get_return_expression(void);
 void _sym_push_path_constraint(SymExpr constraint, int taken,
                                uintptr_t site_id);
 SymExpr _sym_get_input_byte(size_t offset);
+void _sym_add_input_buffer(void* buffer, size_t n_bytes);
 
 /*
  * Memory management

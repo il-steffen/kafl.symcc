@@ -115,7 +115,7 @@ namespace fs = std::filesystem;
 namespace fs = std::experimental::filesystem;
 #endif
 
-void _sym_initialize(void) {
+void _sym_initialize(char const* const input, size_t input_len) {
   if (g_initialized.test_and_set())
     return;
 
@@ -138,42 +138,9 @@ void _sym_initialize(void) {
     exit(-1);
   }
 
-  // Qsym requires the full input in a file
-  if (g_config.inputFile.empty()) {
-    std::cerr << "Reading program input until EOF (use Ctrl+D in a terminal)..."
-              << std::endl;
-    std::istreambuf_iterator<char> in_begin(std::cin), in_end;
-    std::vector<char> inputData(in_begin, in_end);
-    inputFileName = std::tmpnam(nullptr);
-    std::ofstream inputFile(inputFileName, std::ios::trunc);
-    std::copy(inputData.begin(), inputData.end(),
-              std::ostreambuf_iterator<char>(inputFile));
-    inputFile.close();
-
-#ifdef DEBUG_RUNTIME
-    std::cerr << "Loaded input:" << std::endl;
-    std::copy(inputData.begin(), inputData.end(),
-              std::ostreambuf_iterator<char>(std::cerr));
-    std::cerr << std::endl;
-#endif
-
-    atexit(deleteInputFile);
-
-    // Restore some semblance of standard input
-    auto *newStdin = freopen(inputFileName.c_str(), "r", stdin);
-    if (newStdin == nullptr) {
-      perror("Failed to reopen stdin");
-      exit(-1);
-    }
-  } else {
-    inputFileName = g_config.inputFile;
-    std::cerr << "Making data read from " << inputFileName << " as symbolic"
-              << std::endl;
-  }
-
   g_z3_context = new z3::context{};
   g_solver =
-      new Solver(inputFileName, g_config.outputDir, g_config.aflCoverageMap);
+      new Solver(input, input_len, g_config.aflCoverageMap);
   g_expr_builder = g_config.pruning ? PruneExprBuilder::create()
                                     : SymbolicExprBuilder::create();
 }
@@ -291,6 +258,14 @@ void _sym_push_path_constraint(SymExpr constraint, int taken,
 
 SymExpr _sym_get_input_byte(size_t offset) {
   return registerExpression(g_expr_builder->createRead(offset));
+}
+
+void _sym_add_input_buffer(void* buffer, size_t n_bytes) {
+  _sym_set_return_expression(nullptr);
+
+  ReadWriteShadow shadow(buffer, n_bytes);
+  uint64_t inputOffset = 0;
+  std::generate(shadow.begin(), shadow.end(), [&inputOffset]() { return _sym_get_input_byte(inputOffset++); });
 }
 
 SymExpr _sym_concat_helper(SymExpr a, SymExpr b) {
