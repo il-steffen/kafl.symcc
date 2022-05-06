@@ -28,7 +28,7 @@ add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/expr__gen.cpp
 add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/expr_builder__gen.cpp
   COMMAND python2 gen_expr_builder.py ${CMAKE_CURRENT_BINARY_DIR}
   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/${QSYM_SOURCE_DIR}/codegen
-  COMMENT "Generating Qsym's expr__gen.cpp"
+  COMMENT "Generating Qsym's expr_builder__gen.cpp"
   VERBATIM
   DEPENDS
   ${QSYM_SOURCE_DIR}/codegen/expr_builder.cpp
