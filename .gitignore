@@ -37,6 +37,12 @@ TAGS
 # CLion project
 .idea
 
+# VSCode project
+.vscode
+
 # Clang tooling
 compile_commands.json
 .clangd
+
+# cmake
+build
