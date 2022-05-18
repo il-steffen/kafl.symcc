@@ -115,7 +115,7 @@ namespace fs = std::filesystem;
 namespace fs = std::experimental::filesystem;
 #endif
 
-void _sym_initialize(char const* const input, size_t input_len) {
+void _sym_initialize(char const* const input, char const* const input_location, size_t input_len) {
   if (g_initialized.test_and_set())
     return;
 
@@ -129,20 +129,15 @@ void _sym_initialize(char const* const input, size_t input_len) {
     return;
   }
 
-  // Check the output directory
-  if (!fs::exists(g_config.outputDir) ||
-      !fs::is_directory(g_config.outputDir)) {
-    std::cerr << "Error: the output directory " << g_config.outputDir
-              << " (configurable via SYMCC_OUTPUT_DIR) does not exist."
-              << std::endl;
-    exit(-1);
-  }
-
   g_z3_context = new z3::context{};
   g_solver =
       new Solver(input, input_len, g_config.aflCoverageMap);
   g_expr_builder = g_config.pruning ? PruneExprBuilder::create()
                                     : SymbolicExprBuilder::create();
+  uint64_t inputOffset = 0;
+  ReadWriteShadow shadow(input_location, input_len);
+  std::generate(shadow.begin(), shadow.end(),
+                  [&inputOffset]() { return _sym_get_input_byte(inputOffset++); });
 }
 
 SymExpr _sym_build_integer(uint64_t value, uint8_t bits) {

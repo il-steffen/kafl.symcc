@@ -35,7 +35,8 @@ extern "C" {
 /*
  * Initialization
  */
-void _sym_initialize(char const* const input, size_t input_len);
+//void _sym_initialize(char const* const input, size_t input_len);
+void _sym_initialize(char const* const input, char const* const input_location, size_t input_len);
 
 /*
  * Construction of simple values
