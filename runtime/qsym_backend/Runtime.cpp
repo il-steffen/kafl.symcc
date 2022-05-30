@@ -115,13 +115,12 @@ namespace fs = std::filesystem;
 namespace fs = std::experimental::filesystem;
 #endif
 
-void _sym_initialize(char const* const input, char const* const input_location, size_t input_len) {
+void _sym_initialize(char const* const input, char const* const host_input_location, size_t input_len, const char* const out_f) {
   if (g_initialized.test_and_set())
     return;
 
   loadConfig();
   initLibcWrappers();
-  std::cerr << "This is SymCC running with the QSYM backend" << std::endl;
   if (g_config.fullyConcrete) {
     std::cerr
         << "Performing fully concrete execution (i.e., without symbolic input)"
@@ -131,13 +130,17 @@ void _sym_initialize(char const* const input, char const* const input_location, 
 
   g_z3_context = new z3::context{};
   g_solver =
-      new Solver(input, input_len, g_config.aflCoverageMap);
+      new Solver(input, input_len, g_config.aflCoverageMap, out_f);
   g_expr_builder = g_config.pruning ? PruneExprBuilder::create()
                                     : SymbolicExprBuilder::create();
   uint64_t inputOffset = 0;
-  ReadWriteShadow shadow(input_location, input_len);
+  ReadWriteShadow shadow(host_input_location, input_len);
   std::generate(shadow.begin(), shadow.end(),
                   [&inputOffset]() { return _sym_get_input_byte(inputOffset++); });
+}
+
+void _sym_flush_results(void) {
+  g_solver->flushResults();
 }
 
 SymExpr _sym_build_integer(uint64_t value, uint8_t bits) {

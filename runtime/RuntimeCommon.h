@@ -36,7 +36,7 @@ extern "C" {
  * Initialization
  */
 //void _sym_initialize(char const* const input, size_t input_len);
-void _sym_initialize(char const* const input, char const* const input_location, size_t input_len);
+void _sym_initialize(char const* const input_buffer, char const* const host_input_location, size_t input_len, const char* const out_f);
 
 /*
  * Construction of simple values
@@ -177,6 +177,11 @@ bool _sym_feasible(SymExpr expr);
  */
 void _sym_register_expression_region(SymExpr *start, size_t length);
 void _sym_collect_garbage(void);
+
+/*
+ * Flush the results to the file descriptor
+ */
+void _sym_flush_results(void);
 
 #ifdef __cplusplus
 }

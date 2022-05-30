@@ -82,16 +82,17 @@ void _sym_memmove(uint8_t *dest, const uint8_t *src, size_t length) {
 SymExpr _sym_read_memory(uint8_t *addr, size_t length, bool little_endian) {
   assert(length && "Invalid query for zero-length memory region");
 
-#ifdef DEBUG_RUNTIME
-  std::cerr << "Reading " << length << " bytes from address " << P(addr)
-            << std::endl;
-  dump_known_regions();
-#endif
+//#ifdef DEBUG_RUNTIME
+  //std::cerr << "Reading " << length << " bytes from address " << P(addr)
+            //<< std::endl;
+  //dump_known_regions();
+//#endif
 
   // If the entire memory region is concrete, don't create a symbolic expression
   // at all.
-  if (isConcrete(addr, length))
+  if (isConcrete(addr, length)) {
     return nullptr;
+  }
 
   ReadOnlyShadow shadow(addr, length);
   return std::accumulate(shadow.begin_non_null(), shadow.end_non_null(),

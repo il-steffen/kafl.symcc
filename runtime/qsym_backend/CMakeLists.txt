@@ -61,6 +61,7 @@ add_library(SymRuntime SHARED
   ${QSYM_SOURCE_DIR}/expr_cache.cpp
   ${QSYM_SOURCE_DIR}/expr_evaluate.cpp
   ${QSYM_SOURCE_DIR}/solver.cpp
+  ${QSYM_SOURCE_DIR}/results.cpp
   ${QSYM_SOURCE_DIR}/dependency.cpp
   ${QSYM_SOURCE_DIR}/logging.cpp
   ${QSYM_SOURCE_DIR}/afl_trace_map.cpp
