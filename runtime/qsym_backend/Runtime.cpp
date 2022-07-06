@@ -18,6 +18,7 @@
 
 #include "Runtime.h"
 #include "GarbageCollection.h"
+#include "jcc_set.h"
 
 // C++
 #if __has_include(<filesystem>)
@@ -69,6 +70,10 @@ ExprBuilder *g_expr_builder;
 Solver *g_solver;
 CallStackManager g_call_stack_manager;
 z3::context *g_z3_context;
+JccVisitor *g_jcc_visitor;
+char* g_host_input_location;
+size_t g_input_len;
+int out_fd;
 
 } // namespace qsym
 
@@ -118,6 +123,9 @@ namespace fs = std::experimental::filesystem;
 void _sym_initialize(char const* const input, char const* const host_input_location, size_t input_len, const char* const out_f) {
   if (g_initialized.test_and_set())
     return;
+  
+  g_host_input_location = (char*) host_input_location;
+  g_input_len = input_len;
 
   loadConfig();
   initLibcWrappers();
@@ -128,12 +136,14 @@ void _sym_initialize(char const* const input, char const* const host_input_locat
     return;
   }
 
+  g_jcc_visitor = new JccVisitor();
   g_z3_context = new z3::context{};
   g_solver =
-      new Solver(input, input_len, g_config.aflCoverageMap, out_f);
+      new Solver(input, input_len, g_config.aflCoverageMap, *g_jcc_visitor);
   g_expr_builder = g_config.pruning ? PruneExprBuilder::create()
                                     : SymbolicExprBuilder::create();
   uint64_t inputOffset = 0;
+  fprintf(stderr, "[INFO] Symbolizing %p | %ld\n", input, input_len);
   ReadWriteShadow shadow(host_input_location, input_len);
   std::generate(shadow.begin(), shadow.end(),
                   [&inputOffset]() { return _sym_get_input_byte(inputOffset++); });
@@ -142,6 +152,53 @@ void _sym_initialize(char const* const input, char const* const host_input_locat
 void _sym_flush_results(void) {
   g_solver->flushResults();
 }
+
+void _sym_analyze_run(void) {
+  ReadOnlyShadow shadow(g_host_input_location, g_input_len);
+
+  for (auto it = shadow.begin(); it != shadow.end(); ++it) {
+    try {
+      if (std::distance(shadow.begin(), it) > 8) {
+        break;
+      }
+      auto e = allocatedExpressions.at(*it).get();
+      cerr << "Expression associated to byte " << std::distance(shadow.begin(), it) << ": " << endl;
+      e->print();
+      cerr << endl << "End of expression" << endl << endl;
+      cerr << "Constraints associated to byte " << std::distance(shadow.begin(), it) << ": " << endl;
+      e->printConstraints();
+      cerr << endl << "End of expression" << endl << endl;
+    } catch (std::out_of_range& e) {
+      cerr << "No expression at offset " << std::distance(shadow.begin(), it) << endl;
+    }
+  }
+}
+
+char* _sym_start_new_run(void) {
+  std::vector<uint8_t> next_input = g_jcc_visitor->nextInput();
+
+  cerr << "Starting new run." << endl;
+
+  if (next_input.empty()) {
+    return NULL;
+  }
+
+  assert(next_input.size() == g_input_len);
+
+  g_solver = new Solver((const char*) next_input.data(), next_input.size(), g_config.aflCoverageMap, *g_jcc_visitor);
+  g_jcc_visitor->reset();
+  g_shadow_pages.clear();
+  
+  uint64_t inputOffset = 0;
+  ReadWriteShadow shadow(g_host_input_location, g_input_len);
+  std::generate(shadow.begin(), shadow.end(),
+                  [&inputOffset]() { return _sym_get_input_byte(inputOffset++); });
+
+  char* next_input_ptr = (char*) malloc(g_input_len * sizeof(char));
+  memcpy(next_input_ptr, next_input.data(), g_input_len);
+
+  return next_input_ptr;
+} 
 
 SymExpr _sym_build_integer(uint64_t value, uint8_t bits) {
   // Qsym's API takes uintptr_t, so we need to be careful when compiling for
@@ -251,6 +308,13 @@ void _sym_push_path_constraint(SymExpr constraint, int taken,
   if (constraint == nullptr)
     return;
 
+  // cerr << "Path contraint push entry" << endl;
+  // cerr << "Taken? " << taken << endl;
+  // cerr << "Expr: " << endl;
+  // constraint->print(cerr);
+  // cerr << endl;
+
+
   g_solver->addJcc(allocatedExpressions.at(constraint), taken != 0, site_id);
 }
 
@@ -338,6 +402,14 @@ void _sym_notify_basic_block(uintptr_t site_id) {
 }
 
 //
+// Dependency Stack Management
+//
+
+void _sym_push_state(void) {
+
+}
+
+//
 // Debugging
 //
 
@@ -361,6 +433,10 @@ bool _sym_feasible(SymExpr expr) {
   g_solver->pop();
 
   return feasible;
+}
+
+const char* _sym_solver_to_string(void) {
+  return g_solver->toString();
 }
 
 //

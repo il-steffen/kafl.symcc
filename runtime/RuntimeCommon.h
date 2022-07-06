@@ -145,6 +145,12 @@ void _sym_push_path_constraint(SymExpr constraint, int taken,
 SymExpr _sym_get_input_byte(size_t offset);
 void _sym_add_input_buffer(void* buffer, size_t n_bytes);
 
+/**
+ * Run Management
+ */
+char* _sym_start_new_run(void);
+void _sym_analyze_run(void);
+
 /*
  * Memory management
  */
@@ -171,6 +177,7 @@ void _sym_notify_basic_block(uintptr_t site_id);
  */
 const char *_sym_expr_to_string(SymExpr expr); // statically allocated
 bool _sym_feasible(SymExpr expr);
+const char* _sym_solver_to_string(void);
 
 /*
  * Garbage collection
