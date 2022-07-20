@@ -73,6 +73,7 @@ z3::context *g_z3_context;
 JccVisitor *g_jcc_visitor;
 char* g_host_input_location;
 size_t g_input_len;
+std::string g_output_f;
 int out_fd;
 
 } // namespace qsym
@@ -123,6 +124,8 @@ namespace fs = std::experimental::filesystem;
 void _sym_initialize(char const* const input, char const* const host_input_location, size_t input_len, const char* const out_f) {
   if (g_initialized.test_and_set())
     return;
+
+  g_output_f = std::string(out_f);
   
   g_host_input_location = (char*) host_input_location;
   g_input_len = input_len;
@@ -139,7 +142,7 @@ void _sym_initialize(char const* const input, char const* const host_input_locat
   g_jcc_visitor = new JccVisitor();
   g_z3_context = new z3::context{};
   g_solver =
-      new Solver(input, input_len, g_config.aflCoverageMap, *g_jcc_visitor);
+      new Solver(input, input_len, g_config.aflCoverageMap, *g_jcc_visitor, g_output_f.c_str());
   g_expr_builder = g_config.pruning ? PruneExprBuilder::create()
                                     : SymbolicExprBuilder::create();
   uint64_t inputOffset = 0;
@@ -149,8 +152,8 @@ void _sym_initialize(char const* const input, char const* const host_input_locat
                   [&inputOffset]() { return _sym_get_input_byte(inputOffset++); });
 }
 
-void _sym_flush_results(void) {
-  g_solver->flushResults();
+size_t _sym_flush_results(void) {
+  return g_solver->flushResults();
 }
 
 void _sym_analyze_run(void) {
@@ -185,7 +188,7 @@ char* _sym_start_new_run(void) {
 
   assert(next_input.size() == g_input_len);
 
-  g_solver = new Solver((const char*) next_input.data(), next_input.size(), g_config.aflCoverageMap, *g_jcc_visitor);
+  g_solver = new Solver((const char*) next_input.data(), next_input.size(), g_config.aflCoverageMap, *g_jcc_visitor, g_output_f.c_str());
   g_jcc_visitor->reset();
   g_shadow_pages.clear();
   

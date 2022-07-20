@@ -186,9 +186,10 @@ void _sym_register_expression_region(SymExpr *start, size_t length);
 void _sym_collect_garbage(void);
 
 /*
- * Flush the results to the file descriptor
+ * Flush the results to the file descriptor.
+ * Returns the number of results flushed.
  */
-void _sym_flush_results(void);
+size_t _sym_flush_results(void);
 
 #ifdef __cplusplus
 }
