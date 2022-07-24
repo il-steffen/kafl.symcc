@@ -121,15 +121,12 @@ namespace fs = std::filesystem;
 namespace fs = std::experimental::filesystem;
 #endif
 
-void _sym_initialize(char const* const input, char const* const host_input_location, size_t input_len, const char* const out_f) {
+void _sym_initialize(const char* const out_f) {
   if (g_initialized.test_and_set())
     return;
 
   g_output_f = std::string(out_f);
   
-  g_host_input_location = (char*) host_input_location;
-  g_input_len = input_len;
-
   loadConfig();
   initLibcWrappers();
   if (g_config.fullyConcrete) {
@@ -139,14 +136,23 @@ void _sym_initialize(char const* const input, char const* const host_input_locat
     return;
   }
 
-  g_jcc_visitor = new JccVisitor();
   g_z3_context = new z3::context{};
-  g_solver =
-      new Solver(input, input_len, g_config.aflCoverageMap, *g_jcc_visitor, g_output_f.c_str());
   g_expr_builder = g_config.pruning ? PruneExprBuilder::create()
                                     : SymbolicExprBuilder::create();
+}
+
+void _sym_run_start(char const* const host_input_location, size_t input_len) {
+
+  g_host_input_location = (char*) host_input_location;
+  g_input_len = input_len;
+
+  g_jcc_visitor = new JccVisitor();
+  g_solver =
+      new Solver(host_input_location, input_len, g_config.aflCoverageMap, *g_jcc_visitor, g_output_f.c_str());
+  
+  g_shadow_pages.clear();
+  
   uint64_t inputOffset = 0;
-  fprintf(stderr, "[INFO] Symbolizing %p | %ld\n", input, input_len);
   ReadWriteShadow shadow(host_input_location, input_len);
   std::generate(shadow.begin(), shadow.end(),
                   [&inputOffset]() { return _sym_get_input_byte(inputOffset++); });
@@ -177,14 +183,14 @@ void _sym_analyze_run(void) {
   }
 }
 
-char* _sym_start_new_run(void) {
+bool _sym_run_try_start_next_internal_run(void) {
   std::vector<uint8_t> next_input = g_jcc_visitor->nextInput();
 
-  cerr << "Starting new run." << endl;
-
   if (next_input.empty()) {
-    return NULL;
+    return false;
   }
+
+  cerr << "Starting new internal run." << endl;
 
   assert(next_input.size() == g_input_len);
 
@@ -197,11 +203,14 @@ char* _sym_start_new_run(void) {
   std::generate(shadow.begin(), shadow.end(),
                   [&inputOffset]() { return _sym_get_input_byte(inputOffset++); });
 
-  char* next_input_ptr = (char*) malloc(g_input_len * sizeof(char));
-  memcpy(next_input_ptr, next_input.data(), g_input_len);
+  memcpy(g_host_input_location, next_input.data(), g_input_len);
 
-  return next_input_ptr;
-} 
+  return true;
+}
+
+void _sym_run_generate_new_inputs(void) {
+  g_solver->enableJccGenerate();
+}
 
 SymExpr _sym_build_integer(uint64_t value, uint8_t bits) {
   // Qsym's API takes uintptr_t, so we need to be careful when compiling for

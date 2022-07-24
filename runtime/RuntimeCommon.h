@@ -36,7 +36,40 @@ extern "C" {
  * Initialization
  */
 //void _sym_initialize(char const* const input, size_t input_len);
-void _sym_initialize(char const* const input_buffer, char const* const host_input_location, size_t input_len, const char* const out_f);
+// To run once before anything else
+void _sym_initialize(const char* const out_f);
+
+
+/*
+ * Run management
+ */
+
+/**
+ * @brief start a new symbolic run.
+ * 
+ * @pre |[host_input_location; host_input_location + input_len |[ must contain the symbolic input.
+ * This is a **not trivial** condition in a complex system with a paging mechanism...
+ * 
+ * @param host_input_location Host address of the symbolic input
+ * @param input_len Size of the symbolic input
+ */
+void _sym_run_start(char const* const host_input_location, size_t input_len);
+
+/**
+ * @brief Enable input generation
+ */
+void _sym_run_generate_new_inputs(void);
+
+/**
+ * @brief start a new symbolic run internally. One of the fresh generated inputs will
+ * be used to start a new run.
+ * 
+ * @post host_input_location will be filled with the new input to run.
+ * 
+ * @return true if a new internal run is ready and false if no new internal run
+ * is necessary and the symbolic execution can safely end.
+ */
+bool _sym_run_try_start_next_internal_run(void);
 
 /*
  * Construction of simple values
@@ -144,12 +177,6 @@ void _sym_push_path_constraint(SymExpr constraint, int taken,
                                uintptr_t site_id);
 SymExpr _sym_get_input_byte(size_t offset);
 void _sym_add_input_buffer(void* buffer, size_t n_bytes);
-
-/**
- * Run Management
- */
-char* _sym_start_new_run(void);
-void _sym_analyze_run(void);
 
 /*
  * Memory management
