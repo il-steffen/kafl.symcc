@@ -190,7 +190,7 @@ bool _sym_run_try_start_next_internal_run(void) {
     return false;
   }
 
-  cerr << "Starting new internal run." << endl;
+  // cerr << "Starting new internal run." << endl;
 
   assert(next_input.size() == g_input_len);
 
