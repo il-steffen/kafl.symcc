@@ -205,7 +205,29 @@ bool _sym_run_try_start_next_internal_run(void) {
 
   memcpy(g_host_input_location, next_input.data(), g_input_len);
 
+
+  // cerr << "Running new input:" << endl;
+  // for (auto& c : next_input) {
+  //   cerr << std::hex << (int) c << ", ";
+  // }
+  // cerr << endl << endl;
+
   return true;
+}
+
+void _sym_print_deps(void) {
+  DepSet& deps = *(new DepSet());
+  for (auto& expr: collectReachableExpressions()) {
+    cerr << "A" << endl;
+    DepSet& dep = expr->getDeps();
+    deps.insert(dep.begin(), dep.end());
+  }
+
+  cerr << "Dependencies: ";
+  for (auto& i: deps) {
+    cerr << i << ", ";
+  }
+  cerr << endl;
 }
 
 void _sym_run_generate_new_inputs(void) {

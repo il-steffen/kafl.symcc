@@ -177,6 +177,7 @@ void _sym_push_path_constraint(SymExpr constraint, int taken,
                                uintptr_t site_id);
 SymExpr _sym_get_input_byte(size_t offset);
 void _sym_add_input_buffer(void* buffer, size_t n_bytes);
+void _sym_print_deps(void);
 
 /*
  * Memory management
